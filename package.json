@@ -2,6 +2,7 @@
   "name": "redskyops",
   "version": "1.0.0",
   "dependencies": {
+    "redoc": "^2.0.0-rc.12",
     "swagger-repo": "^2.0.0-rc.13"
   },
   "private": true,
