@@ -1,0 +1,703 @@
+# This is an **example** API to demonstrate features of OpenAPI specification.
+# It doesn't cover all OpenAPI features. For more full example check out: https://github.com/APIs-guru/petstore_extended
+
+swagger: '2.0'
+# You should specify common part of your endpoints in the following format:
+#   <schemes>://<host><basepath>
+schemes:
+  - http # Remove if your API doesn't support HTTP
+  - https # Remove if your API doesn't support HTTPS
+host: redskyops.dev # Replace with your hostname. You can also specify port e.g. example.com:777
+basePath: / # Replace with your basePath. Note: SHOULD begin with '/'.
+info:
+  # Describe your API here, you can use GFM (https://guides.github.com/features/mastering-markdown) here
+  description: |
+    This is brief guide to get you up and running with Red Sky Ops as quickly as possible.
+
+
+    [OpenAPI/Swagger format](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md).
+    It also demonstrates features of [generator-openapi-repo](https://github.com/Rebilly/generator-openapi-repo) tool and 
+    [ReDoc](https://github.com/Rebilly/ReDoc) documentation engine. So beyond the standard OpenAPI syntax we use a few 
+    [vendor extensions](https://github.com/Rebilly/ReDoc/blob/master/docs/redoc-vendor-extensions.md).
+    
+    # Documentation
+    
+    Red Sky Ops is an AIOps platform for deploying and optimizing containerized applications in Kubernetes environments. It makes it easy for DevOps teams to manage the millions of possible combinations of application variables they're confronted when deploying applications. With Red Sky Ops, they can identify and implement the best settings for each application in any cloud environment. Red Sky Ops allows teams to streamline their application tuning process and have a centralized, organized view of their tuning results.
+
+
+    
+    
+    # Installing Red Sky Ops
+    
+      There are two parts to Red Sky Ops - the `redskyctl` tool and Red Sky Ops Manager(running in your cluster).
+      
+      ## Installing the Red Sky Ops Tool
+      
+      ### Binary Releases
+      
+      You can download binaries directly from the [releases page](https://github.com/redskyops/k8s-experiment/releases).
+      
+      ### Using cURL and jq
+      
+      To download the latest release, select your platform (`linux` or `darwin`) and run
+      
+          os=linux # Or 'darwin'
+          curl -s https://api.github.com/repos/redskyops/k8s-experiment/releases/latest |\
+           jq -r ".assets[] | select(.name | contains(\"${os:-linux}\")) | .browser_download_url" |\
+             xargs curl -L -o redskyctl
+          chmod +x redskyctl
+          sudo mv redskyctl /usr/local/bin/
+          
+          
+      ## Installing the Red Sky Ops Manager
+      
+      The Red Sky Ops Manager runs inside your Kubernetes cluster. It can be configured to talk to an Enterprise server for improved capabilities.
+
+      ### Easy Install
+      To perform an easy install, simply run `redskyctl init`. This will create a new `redsky-system` namespace and will create a Kubernetes job to manage the actual installation.
+
+      Using `redskyctl init` is safe for multiple invocations; in fact re-running it with a new version of `redskyctl` is also the easiest way to upgrade your in cluster components.
+
+      ### Easy Enterprise Install
+      If you are subscribing to the Enterprise product, please contact your sales representative for additional configuration prior to running `redskyctl init`. If you just want to get started, you can always apply the additional configuration later.
+
+      ### Advanced Installation
+      If you have specific security requirements or the default RBAC configuration for the easy install is too permissive for your environment, there are a number of ways to obtain the raw Red Sky Ops Manager manifests.
+        1. Using `redskyctl init --bootstrap` will create a paused Kubernetes job, you can adjust the bootstrap configuration in cluster and proceed with the installation by scaling the job to 
+        2. Using `redskyctl init --dry-run` will print the raw manifests used during installation, however this still requires creating a Kubernetes job. This option can be combined with the `--bootstrap` option to get the raw manifests of the bootstrap job.
+        3. Using Docker to run the `setuptools` image directly. For example, `docker container run --rm $(redskyctl version --setuptools)` will produce the same output as `redskyctl init --dry-run` without requiring a configured Kubernetes context.
+        
+        
+      ## Upgrading the Red Sky Ops Manager
+      
+      The preferred way to upgrade the Red Sky Ops Manager is to install the latest version of `redskyctl` locally and re-run `redskyctl init`. Use `redskyctl version` to check the current version numbers. 
+      In some cases there may be incompatibilities between versions requiring an uninstall prior to the installation of the new version - please consult the release notes for the version you are installing.
+      
+      
+      ## Uninstalling the Red Sky Ops Manager
+      
+      To remove the Red Sky Ops Manager completely from your cluster, run `redskyctl reset`.
+
+     *IMPORTANT*   Running the reset command will also remove all of the Red Sky Ops data. Ensure you have backed up any information in the cluster prior to running this command.
+
+
+
+
+
+
+
+
+
+
+
+    # Quick Start 
+    You must have a Kubernetes cluster. Additionally, you will need a local configured copy of `kubectl`. The Red Sky Ops Tool will use the same configuration as `kubectl` (usually `$HOME/.kube/config`) to connect to your cluster.
+
+    If you are planing to create the simple experiment from this guide, a [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) cluster is preferred. Additionally, the simple experiment data is stored using [Git](https://git-scm.com/) and needs to be built using [Docker](https://www.docker.com/get-started).
+
+
+
+    ## Install the Red Sky Ops Tool
+    
+    [Download](https://github.com/redskyops/k8s-experiment/releases) and install the `redskyctl` binary for your platform. You will need to rename the downloaded file and mark it as executable.
+
+    For more details, see [the installation guide](https://redskyops.dev/docs/install/).
+    
+    ## Initialize the Red Sky Ops Manager
+    Once you have the Red Sky Ops Tool you can initialize the manager in your cluster. 
+    
+    ``redskyctl init``
+
+    ## Create a Simple Experiment
+    
+    Generally you will want to write your own experiments to run trials on your own applications. For the purposes of this guide we can use the simple example found in the `k8s-experiment` [repository  on GitHub](https://github.com/redskyops/k8s-experiment/tree/master/examples/simple). 
+    
+        $ eval $(minikube docker-env)
+        $ docker build -t benchmark-cli:6.7.0 .
+        $ kubectl apply -f simple.yaml
+    
+    
+    ## Run a Trial
+    
+    With your experiment created, you can be begin running trials by suggesting parameter assignments locally. Each trial will create one or more Kubernetes jobs and will conclude by collecting a small number of metric values indicative of the performance for the trial.
+
+    To interactively create a new trial for the example experiment, run
+    `$ redskyctl suggest --interactive simple`
+    
+    You will be prompted to enter a value for each parameter in the experiment and a new trial will be created. You can monitor the progress using `kubectl`.
+
+    `$ kubectl get trials`
+    
+    When running interactive trials in a single namespace, be sure only trial is active at a time.
+
+    ## Removing an Experiment
+    
+    To clean up the data from your experiment, simply delete the experiment. The delete will cascade to the associated trials and other Kubernetes objects.
+    
+    `$ kubectl delete experiment simple`
+    
+    ## Next Steps
+    
+    Congratulations! You just ran your first experiment. You can move on to a more [advanced tutorial](https://redskyops.dev/tutorial/) or browse the rest of the documentation to learn more about the Red Sky Ops Kubernetes experimentation product.
+  
+    # Advanced Tutorial
+    
+    ## Prerequisites
+    You must have a Kubernetes cluster. Additionally, you will need a local configured copy of `kubectl`. This example requires more resources then the [quick start tutorial](https://redskyops.dev/docs/using_redskyops/quickstart/), therefore you will need something larger then a typical minikube cluster. A three node cluster with 12 total vCPUs (4 on each node) and 24GB total memory (8GB on each node) is generally sufficient.
+    
+    A local install of [Kustomize](https://github.com/kubernetes-sigs/kustomize/releases) (v3.0.0+) is required to manage the objects in you cluster.
+    
+    Additionally, you will to initialize Red Sky Ops in your cluster. You can download a binary for your platform from the [releases page](https://github.com/redskyops/k8s-experiment/releases) and run `redskyctl init`. For more details, see the [installation guide](https://redskyops.dev/docs/using_redskyops/install/).
+    
+    ## Example Resources
+    
+    The resources for this tutorial can be found in the `/examples/tutorial/` directory of the `k8s-experiment` source repository.
+            
+    
+    `kustomization.yaml`  
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The input to Kustomize used to build the Kubernetes object manifests for this example.
+            
+            
+            
+    `service-account.yaml`
+            
+       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This experiment will use Red Sky Ops “setup tasks”. Setup tasks are a simplified way to apply bulk state changes to a cluster (i.e. installing and uninstalling an application or it’s components) before and after a trial run. To use setup tasks, we will create a separate service account with additional privileges necessary to make these modifications.
+            
+            
+    `experiment.yaml`
+            
+       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The actual experiment object manifest; this includes the definition of the experiment itself (in terms of assignable parameters and observable metrics) as well as the instructions for carrying out the experiment (in terms of patches and metric queries). Feel free to edit the parameter ranges and change the experiment name to avoid conflicting with other experiments in the cluster.
+            
+            
+            
+    `config/`
+            
+       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This directory contains manifests for additional cluster state required to run the experiment. For example, `config/prometheus.yaml` creates a minimal Prometheus deployment used to collect metrics during a trial run. The `config/logstash-values.yaml` are Helm values used to configure a release of Logstash from a trial setup task. Additional configuration for Filebeat (load generation) and other Prometheus exporters (use for cost estimates) are also present in the configuration directory.
+
+      ## Experiment Lifecycle
+      
+      Creating an Red Sky Ops experiment stores the experiment state in your cluster (if you are using the Enterprise solution the definition of the experiment is also synchronized to the server to begin searching for optimal assignments). No additional objects are created until trial assignments have been suggested.
+      
+      Once assignments have been suggested, a trial run will start generating workloads for your cluster. The creation of a trial object populated with assignments will initiate the following work - 
+      
+      1. If the experiment contains setup tasks, a new job will be created for that work. 
+      2. The patches defined in the experiment are applied to the cluster.
+      3. The status of all patched objects is monitored, the trial run will wait for them to stabilize.
+      4. The trial job specified in the experiment is created (the default behavior simply executes a timed sleep).
+      5. Upon completion of the trial job, metric values are collected.
+      6. If the experiment contains setup tasks, another job will be created to clean up the state created by the initial setup task job.
+
+
+      ## Running the Experiment
+      
+      From the `/examples/tutorial` directory, apply the required configuration to the cluster (note that the example kustomization leverages Kustomize features that may not be available from `kubectl apply -k`)
+      
+      `$ kustomize build | kubectl apply -f -`
+      
+      When configured to use the Enterprise solution, trials will be created automatically. You may interactively suggest trial assignments to start a trial run as well.
+      
+      `$ redskyctl suggest --interactive elk`
+      
+      ## Monitoring the Experiment
+      
+      Both `experiments` and `trials` are created as custom Kubernetes objects. You can see a summary of the objects using `kubectl get`; on compatible clusters, trial objects will also display their parameter assignments and (upon completion) observed values.
+      
+      The experiment objects themselves will not have their state modified over the course of a trial run. Once created they represent generally static state.
+      
+      Trial objects will undergo a number of state progressions over the course of a trial run. These progressions can be monitored by watching the “status” portion of the trial object (e.g. when viewing `kubectl get trials -o yaml <NAME>`).
+      
+      The trial object will also own several (one to three) job objects depending on the experiment; those jobs will be labeled using the trial name (e.g. `trial=<name>`) and are typically named using the trial name as a prefix. The `-create` and `-delete` suffixes on job names indicate setup tasks (also labeled with `role=trialSetup`).
+      
+      ## Re-running the Experiment
+      Once a trial run is complete, you can run additional trials using `redskyctl suggest` (again, this done automatically when using the Enterprise solution).
+
+      The tutorial experiment is not configured to isolate trials to individual namespaces.  Attempting to run a trial for the tutorial experiment while another tutorial experiment trial is in progress will cause conflicts and lead to inconsistent states.
+
+      If you need to upgrade Red Sky Ops between trial runs, you may need to reset Red Sky Ops. In this case you will need to re-apply the kustomization.
+
+
+    # Red Sky Ops Tool Definitions
+    
+    ## redskyctl
+    
+    Kubernetes Exploration
+
+    ### Synopsis
+    
+    Kubernetes Exploration
+    
+    `redskyctl [flags]`
+    
+    ### Options
+    
+    ``` 
+        --address string      Absolute URL of the Red Sky API.
+        -h, --help            help for redskyctl
+        --kubeconfig string   Path to the kubeconfig file to use for CLI requests.
+    ```
+
+    ### See Also
+      * [redskyctl check](https://redskyops.dev/docs/redskyctl/#redskyctl-check) - Run a consistency check
+      * [redskyctl config](https://redskyops.dev/docs/redskyctl/#redskyctl-config) - Work with the configuration file
+      * [redskyctl init](https://redskyops.dev/docs/redskyctl/#redskyctl-init) - Install to a cluster
+      * [redskyctl reset](https://redskyops.dev/docs/redskyctl/#redskyctl-reset) - Uninstall from a cluster
+      * [redskyctl status](https://redskyops.dev/docs/redskyctl/#redskyctl-status) - Check experiment status
+      * [redskyctl suggest](https://redskyops.dev/docs/redskyctl/#redskyctl-suggest) - Suggest assignments
+      * [redskyctl version](https://redskyops.dev/docs/redskyctl/#redskyctl-version) - Print the version information
+
+    ## redskyctl check
+    Run a consistency check
+    
+    ### Synposis
+    
+    Run a consistency check on Red Sky Ops components
+    
+    `redskyctl check [flags]`
+    
+    ### Options
+    
+    `-h, --help   help for check`
+    
+    ### Options inherited from parent commands
+        --address string      Absolute URL of the Red Sky API
+        --kubeconfig string   Path to the kubeconfig file to use for CLI requests.
+    
+    ### SEE ALSO
+    * [redskyctl](https://redskyops.dev/docs/redskyctl/#redskyctl) - Kubernetes Exploration
+    * [redskyctl check server](https://redskyops.dev/docs/redskyctl/#redskyctl-check-server) - Check the server
+
+
+    ## redskyctl check server
+    Check the server
+    
+    ### Synopsis
+    Check the Red Sky Ops server
+    
+    `redskyctl check server [flags]`
+    
+    ### Options
+        --dry-run       Generate experiment JSON to stdout.
+        -h, --help      help for server
+        
+        
+    ### Options inherited from parent commands
+        --address string      Absolute URL of the Red Sky API.
+        --kubeconfig string   Path to the kubeconfig file to use for CLI requests.
+
+    ### SEE ALSO
+    [redskyctl check](https://redskyops.dev/docs/redskyctl/#redskyctl-check) - Run a consistency check
+
+
+    ## redskyctl config
+      Work with the configuration file
+
+      ### Synopsis
+      Modify or view the Red Sky Ops configuration file
+
+    `redskyctl config [flags]`
+    
+    ### Options
+      `-h, --help   help for config`
+      
+      
+    ### Options inherited from parent commands
+        --address string       Absolute URL of the Red Sky API.
+         --kubeconfig string   Path to the kubeconfig file to use for CLI requests.
+         
+    
+    
+    ### SEE ALSO
+    
+    * [redskyctl](https://redskyops.dev/docs/redskyctl/#redskyctl) - Kubernetes Exploration
+    * [redskyctl config set](https://redskyops.dev/docs/redskyctl/#redskyctl-config-set) - Modify the configuration file
+    * [redskyctl config view](https://redskyops.dev/docs/redskyctl/#redskyctl-config-view) - View the configuration file
+
+    ## redskyctl config set
+    Modify the configuration file
+    
+    `redskyctl config set NAME [VALUE] [flags]`
+    
+    ### Options
+      `-h, --help   help for set`
+      
+    ### Options inherited from parent commands
+        --address string      Absolute URL of the Red Sky API.
+        --kubeconfig string   Path to the kubeconfig file to use for CLI requests.
+        
+    ### SEE ALSO
+    
+    * [redskyctl config](https://redskyops.dev/docs/redskyctl/#redskyctl-config) - Work with the configuration file
+    
+    ## redskyctl config view
+    
+    View the configuration file
+    
+    ### Synopsis
+    
+    View the Red Sky Ops configuration file
+    ` redskyctl config view [flags]`
+    
+    ### Options
+    `-h, --help   help for view`
+    
+    ### Options inherited from parent commands
+        --address string    Absolute URL of the Red Sky API.
+        --kubeconfig string Path to the kubeconfig file to use for CLI request 
+        
+    ### SEE ALSO
+    * [redskyctl config](https://redskyops.dev/docs/redskyctl/#redskyctl-config) - Work with the configuration file
+    
+    ## redskyctl init
+    Install to a cluster
+    
+    ### Synopsis
+      Install Red Sky Ops to a cluster
+      
+      `redskyctl init [flags]`
+      
+    ### Options
+          --bootstrap   Stop after creating the boostrap configuration.
+          --dry-run     Generate the manifests instead of applying them.
+          --h, help     help for init
+          --kustomize   Install/update the Kustomize plugin and exit. 
+          
+    ### Options inherited from parent commands
+          --address string    Absolute URL of the Red Sky API.
+          --kubeconfig string Path to the kubeconfig file to use for CLI request 
+          
+    ### SEE ALSO
+    * [redskyctl](https://redskyops.dev/docs/redskyctl/#redskyctl) - Kubernetes Exploration
+    
+    ## redskyctl reset
+    Uninstall from a cluster
+    
+    ### Synopsis
+      Uninstall Red Sky Ops from a cluster
+      `redskyctl reset [flags]`
+      
+      ### Options
+          --bootstrap   Stop after creating the boostrap configuration.;
+          --dry-run     Generate the manifests instead of applying them. 
+          -h, --help    help for reset
+          --kustomize   Install/update the Kustomize plugin and exit.
+          
+      ### Options inherited from parent commands
+          --address string    Absolute URL of the Red Sky API.
+          --kubeconfig string Path to the kubeconfig file to use for CLI requests.
+          
+      ### SEE ALSO
+      * [redskyctl](https://redskyops.dev/docs/redskyctl/#redskyctl) - Kubernetes Exploration
+      
+      
+    ## redskyctl status
+    
+    Check experiment status
+    
+    ### Synposis
+      Check status for each trial in an experiment
+      
+      `redskyctl status NAME [flags]`
+      
+      ### Options
+        -h, --help              help for status
+        -n, --namespace string  Experiment namespace in the Kubernetes cluster.
+        -o, --output string     Output format. One of - json|yaml|name.
+        
+      ### Options inherited from parent commands 
+        --address string    Absolute URL of the Red Sky API. 
+        --kubeconfig string Path to the kubeconfig file to use for CLI requests.
+        
+      ### SEE ALSO
+      * [redskyctl](https://redskyops.dev/docs/redskyctl/#redskyctl) - Kubernetes Exploration
+      
+      
+      ## redskyctl suggest
+      
+      Suggest assignments
+      
+      ### Synposis
+      Suggest assignments for a new trial run
+      
+      `redskyctl suggest NAME [flags]`
+      
+      ### Options
+          -A, --assign stringToString   Assign an explicit value to a parameter. (default[])
+          --default string              Select the behavior for default values; one of none|min|max|rand.
+          -h, --help                    help for suggest
+          --interactive                 Allow interactive prompts for unspecified parameter assignments.
+          -n, --namespace string        Experiment namespace in the Kubernetes cluster
+          --remote                      Create the suggestion on the Red Sky server.
+          
+      ### Options inherited from parent commands
+          --address string    Absolute URL of the Red Sky API.
+          --kubeconfig string Path to the kubeconfig file to use for CLI request
+          
+      ### SEE ALSO
+      * [redskyctl](https://redskyops.dev/docs/redskyctl/#redskyctl) - Kubernetes Exploration
+      
+      
+      ## redskyctl version
+      Print the version information
+      
+      ### Synopsis 
+      Print the version information for Red Sky Ops components 
+      
+      `redskyctl version [flags]`
+      
+      ### Options
+          -h, --help              help for version
+          -n, --namespace string  System namespace in the Kubernetes cluster. (default "redsky-system")
+          --setuptools            Print only the name of the setuptools image.
+          
+      ### Options inherited from parent commands
+          --address string      Absolute URL of the Red Sky API. 
+          --kubeconfig string   Path to the kubeconfig file to use for CLI requests.
+          
+      ### SEE ALSO
+      * [redskyctl](https://redskyops.dev/docs/redskyctl/#redskyctl) - Kubernetes Exploration
+          
+  
+  
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  version: '1.0.2' # Your API version
+  # It can be any string but it is better to use semantic versioning: http://semver.org/
+  # Warning: OpenAPI require version to be string, but without quotation YAML can recognize it as number.
+
+  title: Red Sky Ops # Replace with your API title
+  # Keep it simple. Don't add "API" or version at the end of the string.
+
+  termsOfService: 'https://www.carbonrelay.com/terms-and-conditions/' # [Optional] Replace with an URL to your ToS
+  contact:
+    email: info@carbonrelay.com # [Optional] Replace with your contact email
+    url: 'https://www.carbonrelay.com/contact-us/' # [Optional] Replace with link to your contact form
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+  x-logo:
+    url: 'https://redskyops.dev/img/logo.png'
+externalDocs:
+  description: Find out how to create Github repo for your OpenAPI spec.
+  url: 'https://github.com/Rebilly/generator-openapi-repo'
+produces:
+  # List of mime types your API endpoints can return.
+  # This is a global default. You can OVERWRITE it in each specific operation.
+  # Remove the ones not used in your API
+  - application/json
+  - application/xml
+  - text/csv
+  # you can add any mime type your API produces to the list
+consumes:
+  # List of mime types your API endpoints consumes.
+  # This is a global default. You can OVERWRITE it in each specific operation.
+  # Remove the ones not supported by your API
+  - application/json
+  - application/xml
+  # you can add any mime type your API consumes to the list
+
+# A list of tags used by the specification with additional metadata.
+# The order of the tags can be used to reflect on their order by the parsing tools.
+tags:
+  - name: Echo
+    description: Example echo operations
+  - name: User
+    description: Operations about user
+# Security scheme definitions that can be used across the specification.
+securityDefinitions:
+  client_id: # security definition name (you can name it as you want)
+    type: oauth2 # authorization type, one of: oauth2, basic, apiKey
+    # the following options are specific to oauth2 type
+    authorizationUrl: 'http://o1.carbonrelay.dev/auth/token'
+    flow: implicit
+    scopes:
+      'read:users': read users info
+      'write:users': modify or remove users
+  client_secret: # security definition name (you can name it as you want)
+    type: apiKey
+    # The following options are specific to apiKey type
+    in: header # Where API key will be passed: header or query
+    name: api_key # API key parameter name
+  basic_auth: # security definition name (you can name it as you want)
+    type: basic
+
+# Holds the relative paths to the individual endpoints. The path is appended to the
+# basePath in order to construct the full URL. 
+paths:
+  '/users/{username}': # path parameter in curly braces
+    # documentation for GET operation for this path
+    
+    # parameters list that are used with each operation for this path
+    parameters:
+      - name: pretty_print
+        in: query # place where parameter is passed: path, header, query or body, formData
+        description: Pretty print response
+        # type of the parameter: string, number, integer, boolean, array
+        type: boolean
+    get:
+      tags:
+        - User
+      
+      # summary is up to 120 symbold but we recommend to be shortest as possible
+      summary: Get user by user name
+      
+      # you can use GFM in operation description too: https://guides.github.com/features/mastering-markdown
+      description: | 
+        Some description of the operation. 
+        You can use `markdown` here.
+      
+      # operationId should be unique across the whole specification
+      operationId: getUserByName
+      
+      # list of parameters for the operation
+      parameters:
+        - name: username
+          in: path
+          description: 'The name that needs to be fetched'
+          required: true
+          type: string
+        - name: with_email
+          in: query
+          description: Filter users without email
+          type: boolean
+      
+      # security schemas applied to this operation
+      security:
+        - client_id:
+          - 'read:users' # for auth2 provide list of scopes here
+        - client_secret: []
+      # overwriting default global produces
+      produces:
+        - application/json
+      responses: # list of responses
+        '200':
+          description: Success
+          schema: # response schema can be specified for each response
+            $ref: '#/definitions/User'
+          examples:
+          # response samples for each type operation produces
+            application/json:
+              username: user1
+              email: user@example.com
+        '403':
+          description: Forbidden
+        '404':
+          description: User not found
+    # documentation for PUT operation for this path
+    put:
+      tags:
+        - User
+      summary: Updated user
+      description: This can only be done by the logged in user.
+      operationId: updateUser
+      produces:
+        - application/json
+      parameters:
+        - name: username
+          in: path
+          description: The name that needs to be updated
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: Updated user object
+          required: true
+          # for body parameter you should specify request schema instead of type
+          schema:
+            $ref: '#/definitions/User'
+      security:
+        - client_id:
+          - 'write:users'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid user supplied
+        '404':
+          description: User not found
+  
+  '/echo':
+    post:
+      tags:
+        - Echo
+      summary: Echo test
+      description: Receive the exact message you've sent
+      operationId: echo
+      parameters:
+        - name: message
+          in: body
+          description: 'Echo payload'
+          required: true
+          schema:
+            type: string
+            example: 'Hello world!'
+      security:
+        - client_secret: []
+      responses:
+        '200':
+          description: 'OK'
+          examples:
+            'application/json': 'Hello world!'
+          schema:
+            type: string
+          # document headers for this response
+          headers:
+            X-Rate-Limit: # Header name
+              type: integer # Header value type
+              format: int32 # Header value format
+              description: calls per hour allowed by the user
+            X-Expires-After:
+              type: string
+              format: date-time
+              description: date in UTC when token expires
+# An object to hold data types that can be consumed and produced by operations.
+# These data types can be primitives, arrays or models.
+definitions:
+  Email:
+    description: User email address
+    type: string
+    format: email
+    example: john.smith@example.com
+  User:
+    type: object
+    properties:
+      username:
+        description: User supplied username
+        type: string
+        minLength: 4
+        example: John78
+      firstName:
+        description: User first name
+        type: string
+        minLength: 1
+        example: John
+      lastName:
+        description: User last name
+        type: string
+        minLength: 1
+        example: Smith
+      email:
+        $ref: '#/definitions/Email'
